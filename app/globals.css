@@ -28,3 +28,4 @@
 }
 
 * { border-color: var(--border); }
+button:not(:disabled) { cursor: pointer; }
