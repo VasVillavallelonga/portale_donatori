@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { CalendarIcon, Pencil, Plus, Search } from "lucide-react";
+import { CalendarIcon, Eye, Pencil, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { donors as initialDonors, type Donor } from "@/lib/donors";
+import { donations } from "@/lib/donations";
 
 const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 type DonorForm = Omit<Donor, "id" | "donationCount" | "lastDonation">;
@@ -45,6 +46,7 @@ const emptyForm: DonorForm = {
   name: "",
   email: "",
   phone: "",
+  gender: "female",
   birthDate: "",
   registryCode: "",
   bloodType: "0+",
@@ -131,6 +133,7 @@ export function DonorsTable() {
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [editing, setEditing] = useState<Donor | null>(null);
+  const [detailsDonor, setDetailsDonor] = useState<Donor | null>(null);
   const [open, setOpen] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [form, setForm] = useState<DonorForm>(emptyForm);
@@ -162,6 +165,7 @@ export function DonorsTable() {
             name: donor.name,
             email: donor.email ?? "",
             phone: donor.phone ?? "",
+            gender: donor.gender,
             birthDate: donor.birthDate,
             registryCode: donor.registryCode,
             bloodType: donor.bloodType,
@@ -269,6 +273,23 @@ export function DonorsTable() {
               />
             </div>
             <div className="space-y-2">
+              <Label>Sesso</Label>
+              <Select
+                value={form.gender}
+                onValueChange={(value) =>
+                  set("gender", value as DonorForm["gender"])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="female">Donna</SelectItem>
+                  <SelectItem value="male">Uomo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -334,45 +355,99 @@ export function DonorsTable() {
           </form>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={Boolean(detailsDonor)}
+        onOpenChange={(open) => !open && setDetailsDonor(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Donazioni di {detailsDonor?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-3 space-y-3">
+            {donations.filter(
+              (donation) => donation.donorId === detailsDonor?.id,
+            ).length ? (
+              donations
+                .filter((donation) => donation.donorId === detailsDonor?.id)
+                .map((donation) => (
+                  <div
+                    key={donation.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{donation.type}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {donation.date}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{donation.year}</Badge>
+                  </div>
+                ))
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nessuna donazione registrata.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="grid gap-3 sm:hidden">
         {rows.map((donor) => (
           <div
             key={donor.id}
-            className="rounded-lg border bg-card p-4 shadow-sm"
+            className="rounded-xl border bg-card p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold">{donor.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Gruppo {donor.bloodType} · Cod. {donor.registryCode || "—"}
+                  {donor.gender === "female" ? "Donna" : "Uomo"} · Gruppo{" "}
+                  {donor.bloodType} · Cod. {donor.registryCode || "—"}
                 </p>
               </div>
-              <Badge variant={donor.active ? "success" : "warning"} className="shrink-0 whitespace-nowrap">
+              <Badge
+                variant={donor.active ? "success" : "warning"}
+                className="shrink-0 whitespace-nowrap"
+              >
                 {donor.active ? "Attivo" : "Non attivo"}
               </Badge>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              <div>
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-muted/50 p-3 text-sm">
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Nascita</p>
                 <p>{formatBirthDate(donor.birthDate) || "—"}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Donazioni</p>
                 <p className="font-medium">{donor.donationCount}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Telefono</p>
                 <p>{donor.phone ?? "—"}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">
                   Ultima donazione
                 </p>
                 <p>{donor.lastDonation}</p>
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => edit(donor)}>
+            <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setDetailsDonor(donor)}
+              >
+                <Eye className="h-4 w-4" />
+                Donazioni
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => edit(donor)}
+              >
                 <Pencil className="h-4 w-4" />
                 Modifica
               </Button>
@@ -405,7 +480,8 @@ export function DonorsTable() {
                 <TableCell>
                   <div className="font-medium">{donor.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Gruppo {donor.bloodType}
+                    {donor.gender === "female" ? "Donna" : "Uomo"} · Gruppo{" "}
+                    {donor.bloodType}
                   </div>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
@@ -432,6 +508,14 @@ export function DonorsTable() {
                   </Badge>
                 </TableCell>
                 <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDetailsDonor(donor)}
+                    aria-label={`Visualizza donazioni di ${donor.name}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
