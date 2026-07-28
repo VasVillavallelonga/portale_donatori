@@ -20,3 +20,7 @@ export async function signInWithPassword(
 
   return { success: true };
 }
+
+export async function signOut(): Promise<void> {
+  // Punto di integrazione per Supabase: supabase.auth.signOut().
+}
