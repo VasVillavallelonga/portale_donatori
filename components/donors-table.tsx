@@ -11,7 +11,6 @@ import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -233,9 +232,6 @@ export function DonorsTable() {
             <DialogTitle>
               {editing ? "Modifica donatore" : "Nuovo donatore"}
             </DialogTitle>
-            <DialogDescription>
-              Compila i dati disponibili: è obbligatorio solo il nome.
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -250,7 +246,8 @@ export function DonorsTable() {
                 }}
                 aria-invalid={nameError}
                 className={cn(
-                  nameError && "border-destructive bg-destructive/10 ring-2 ring-destructive/50",
+                  nameError &&
+                    "border-destructive bg-destructive/10 ring-2 ring-destructive/50",
                 )}
               />
             </div>
@@ -337,70 +334,118 @@ export function DonorsTable() {
           </form>
         </DialogContent>
       </Dialog>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Donatore</TableHead>
-            <TableHead className="hidden lg:table-cell">
-              Dati anagrafici
-            </TableHead>
-            <TableHead className="hidden md:table-cell">Contatti</TableHead>
-            <TableHead className="hidden sm:table-cell">
-              Ultima donazione
-            </TableHead>
-            <TableHead className="text-right">Donazioni</TableHead>
-            <TableHead className="hidden text-right xl:table-cell">
-              Stato
-            </TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((donor) => (
-            <TableRow key={donor.id}>
-              <TableCell>
-                <div className="font-medium">{donor.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  Gruppo {donor.bloodType}
-                </div>
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <div>{formatBirthDate(donor.birthDate) || "—"}</div>
-                <div className="text-xs text-muted-foreground">
-                  Cod. {donor.registryCode || "—"}
-                </div>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <div>{donor.phone ?? "—"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {donor.email ?? "—"}
-                </div>
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                {donor.lastDonation}
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                {donor.donationCount}
-              </TableCell>
-              <TableCell className="hidden text-right xl:table-cell">
-                <Badge variant={donor.active ? "success" : "warning"}>
-                  {donor.active ? "Attivo" : "Non attivo"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => edit(donor)}
-                  aria-label={`Modifica ${donor.name}`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </TableCell>
+      <div className="grid gap-3 sm:hidden">
+        {rows.map((donor) => (
+          <div
+            key={donor.id}
+            className="rounded-lg border bg-card p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">{donor.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Gruppo {donor.bloodType} · Cod. {donor.registryCode || "—"}
+                </p>
+              </div>
+              <Badge variant={donor.active ? "success" : "warning"} className="shrink-0 whitespace-nowrap">
+                {donor.active ? "Attivo" : "Non attivo"}
+              </Badge>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Nascita</p>
+                <p>{formatBirthDate(donor.birthDate) || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Donazioni</p>
+                <p className="font-medium">{donor.donationCount}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Telefono</p>
+                <p>{donor.phone ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Ultima donazione
+                </p>
+                <p>{donor.lastDonation}</p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => edit(donor)}>
+                <Pencil className="h-4 w-4" />
+                Modifica
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Donatore</TableHead>
+              <TableHead className="hidden lg:table-cell">
+                Dati anagrafici
+              </TableHead>
+              <TableHead className="hidden md:table-cell">Contatti</TableHead>
+              <TableHead className="hidden sm:table-cell">
+                Ultima donazione
+              </TableHead>
+              <TableHead className="text-right">Donazioni</TableHead>
+              <TableHead className="hidden text-right xl:table-cell">
+                Stato
+              </TableHead>
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.map((donor) => (
+              <TableRow key={donor.id}>
+                <TableCell>
+                  <div className="font-medium">{donor.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Gruppo {donor.bloodType}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <div>{formatBirthDate(donor.birthDate) || "—"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Cod. {donor.registryCode || "—"}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <div>{donor.phone ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {donor.email ?? "—"}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  {donor.lastDonation}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {donor.donationCount}
+                </TableCell>
+                <TableCell className="hidden text-right xl:table-cell">
+                  <Badge variant={donor.active ? "success" : "warning"}>
+                    {donor.active ? "Attivo" : "Non attivo"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => edit(donor)}
+                    aria-label={`Modifica ${donor.name}`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }

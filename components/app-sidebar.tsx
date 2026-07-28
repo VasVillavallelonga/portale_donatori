@@ -3,10 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Droplets, LayoutDashboard, Menu, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Droplets, LayoutDashboard, LogOut, PanelLeftOpen, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { UserMenu } from "@/components/user-menu";
+import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const navigation = [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }, { href: "/donatori", label: "Donatori", icon: Users }, { href: "/donazioni", label: "Donazioni", icon: Droplets }];
@@ -17,5 +19,6 @@ function Navigation({ collapsed = false }: { collapsed?: boolean }) {
 }
 
 export function Brand({ collapsed = false }: { collapsed?: boolean }) { return <Link href="/dashboard" title={collapsed ? "Portale Donazioni di sangue" : undefined} className={cn("flex items-center font-semibold", collapsed ? "justify-center" : "gap-2")}><Image src="/vas-logo.svg" alt="Logo VAS" width={500} height={606} unoptimized className="h-10 w-10 shrink-0 object-contain" /><span className={cn(collapsed && "sr-only")}>Donazioni sangue</span></Link>; }
+function LogoutButton({ collapsed = false }: { collapsed?: boolean }) { const router = useRouter(); const logout = async () => { await signOut(); router.push("/login"); }; return<Button variant="outline" onClick={logout} title={collapsed ? "Esci" : undefined} className={cn("w-full bg-red-500 text-white hover:bg-red-600 hover:text-white", collapsed ? "justify-center px-2" : "justify-start")}><LogOut className="h-4 w-4" /><span className={cn(collapsed && "sr-only")}>Esci</span></Button>; }
 
-export function AppSidebar({ collapsed }: { collapsed: boolean }) { return <><aside className={cn("fixed inset-y-0 left-0 z-30 hidden flex-col border-r bg-background p-4 transition-[width] duration-200 md:flex", collapsed ? "w-20" : "w-64")}><Brand collapsed={collapsed} /><div className="mt-5"><Navigation collapsed={collapsed} /></div><div className={cn("mt-auto rounded-lg bg-muted p-3 text-xs text-muted-foreground", collapsed && "hidden")}>Area riservata<br /><span className="font-medium text-foreground">Amministrazione</span></div></aside><header className="flex h-16 items-center border-b bg-background px-4 md:hidden"><Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Apri menu"><Menu className="h-5 w-5" /></Button></SheetTrigger><SheetContent><Brand /><Separator className="my-5" /><Navigation /></SheetContent></Sheet><span className="ml-3 text-sm font-semibold">Donazioni sangue</span></header></>; }
+export function AppSidebar({ collapsed }: { collapsed: boolean }) { return <><aside className={cn("fixed inset-y-0 left-0 z-30 hidden flex-col border-r bg-background p-4 transition-[width] duration-200 md:flex", collapsed ? "w-20" : "w-64")}><Brand collapsed={collapsed} /><div className="mt-5"><Navigation collapsed={collapsed} /></div><div className={cn("mt-auto space-y-3", collapsed && "flex flex-col items-center")}><LogoutButton collapsed={collapsed} /></div></aside><header className="flex h-16 items-center justify-between border-b bg-background px-4 md:hidden"><Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Apri menu"><PanelLeftOpen className="h-5 w-5" /></Button></SheetTrigger><SheetContent><Brand /><div className="mt-5"><Navigation /></div><div className="mt-auto"><LogoutButton /></div></SheetContent></Sheet><UserMenu showNameOnMobile /></header></>; }
