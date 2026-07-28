@@ -1,7 +1,406 @@
 "use client";
+
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Search } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { CalendarIcon, Pencil, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge"; import { Button } from "@/components/ui/button"; import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"; import { Input } from "@/components/ui/input"; import { Label } from "@/components/ui/label"; import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; import { cn } from "@/lib/utils"; import { donors as initialDonors, type Donor } from "@/lib/donors";
-const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const; type DonorForm = Omit<Donor, "id" | "donationCount" | "lastDonation">; const emptyForm: DonorForm = { name: "", email: "", phone: "", birthDate: "", registryCode: "", bloodType: "0+", active: true };
-export function DonorsTable() { const [items,setItems]=useState(initialDonors); const [query,setQuery]=useState(""); const [activeFilter,setActiveFilter]=useState("all"); const [editing,setEditing]=useState<Donor|null>(null); const [open,setOpen]=useState(false); const [nameError,setNameError]=useState(false); const [form,setForm]=useState<DonorForm>(emptyForm); const rows=useMemo(()=>items.filter(d=>(activeFilter==="all"||d.active===(activeFilter==="active"))&&`${d.name} ${d.email??""} ${d.phone??""} ${d.registryCode}`.toLowerCase().includes(query.toLowerCase())),[items,query,activeFilter]); const close=()=>{setOpen(false);setEditing(null);setForm(emptyForm);setNameError(false)}; const edit=(d?:Donor)=>{setEditing(d??null);setForm(d?{name:d.name,email:d.email??"",phone:d.phone??"",birthDate:d.birthDate,registryCode:d.registryCode,bloodType:d.bloodType,active:d.active}:emptyForm);setNameError(false);setOpen(true)}; const set=<K extends keyof DonorForm>(key:K,value:DonorForm[K])=>setForm(x=>({...x,[key]:value})); const save=(e:React.FormEvent)=>{e.preventDefault();if(!form.name.trim()){toast.error("Inserisci almeno il nome del donatore.");setNameError(true);window.setTimeout(()=>setNameError(false),2000);return} if(editing)setItems(x=>x.map(d=>d.id===editing.id?{...d,...form}:d));else setItems(x=>[...x,{...form,id:crypto.randomUUID(),donationCount:0,lastDonation:"Nessuna donazione"}]);toast.success(editing?"Donatore aggiornato.":"Donatore inserito.");close()}; return <><div className="mb-5 flex flex-col gap-3 lg:flex-row"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cerca per nome, codice o contatto" className="pl-9"/></div><Select value={activeFilter} onValueChange={setActiveFilter}><SelectTrigger className="w-full lg:w-44"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">Tutti gli stati</SelectItem><SelectItem value="active">Attivi</SelectItem><SelectItem value="inactive">Non attivi</SelectItem></SelectContent></Select><Button onClick={()=>edit()}><Plus className="h-4 w-4"/>Nuovo donatore</Button></div><Dialog open={open} onOpenChange={v=>!v&&close()}><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{editing?"Modifica donatore":"Nuovo donatore"}</DialogTitle><DialogDescription>Compila i dati disponibili: è obbligatorio solo il nome.</DialogDescription></DialogHeader><form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Nome e cognome</Label><Input id="name" placeholder="es. Giulia Rossi" value={form.name} onChange={e=>{set("name",e.target.value);setNameError(false)}} aria-invalid={nameError} className={cn(nameError&&"border-destructive ring-2 ring-destructive/30")}/></div><div className="space-y-2"><Label htmlFor="birth">Data di nascita</Label><Input id="birth" placeholder="es. 12 apr 1989" value={form.birthDate} onChange={e=>set("birthDate",e.target.value)}/></div><div className="space-y-2"><Label htmlFor="code">Codice anagrafico</Label><Input id="code" inputMode="numeric" placeholder="es. 6621972" value={form.registryCode} onChange={e=>set("registryCode",e.target.value)}/></div><div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="es. giulia@email.it" value={form.email} onChange={e=>set("email",e.target.value)}/></div><div className="space-y-2"><Label htmlFor="phone">Telefono</Label><Input id="phone" type="tel" placeholder="es. +39 333 123 4567" value={form.phone} onChange={e=>set("phone",e.target.value)}/></div><div className="space-y-2"><Label>Gruppo sanguigno</Label><Select value={form.bloodType} onValueChange={v=>set("bloodType",v as DonorForm["bloodType"])}><SelectTrigger><SelectValue placeholder="Seleziona gruppo"/></SelectTrigger><SelectContent>{bloodTypes.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Stato</Label><Select value={form.active?"active":"inactive"} onValueChange={v=>set("active",v==="active")}><SelectTrigger><SelectValue placeholder="Seleziona stato"/></SelectTrigger><SelectContent><SelectItem value="active">Attivo</SelectItem><SelectItem value="inactive">Non attivo</SelectItem></SelectContent></Select></div><div className="flex justify-end gap-2 pt-2 sm:col-span-2"><Button type="button" variant="outline" onClick={close}>Annulla</Button><Button type="submit">{editing?"Salva modifiche":"Inserisci donatore"}</Button></div></form></DialogContent></Dialog><Table><TableHeader><TableRow><TableHead>Donatore</TableHead><TableHead className="hidden lg:table-cell">Dati anagrafici</TableHead><TableHead className="hidden md:table-cell">Contatti</TableHead><TableHead className="hidden sm:table-cell">Ultima donazione</TableHead><TableHead className="text-right">Donazioni</TableHead><TableHead className="hidden text-right xl:table-cell">Stato</TableHead><TableHead/></TableRow></TableHeader><TableBody>{rows.map(d=><TableRow key={d.id}><TableCell><div className="font-medium">{d.name}</div><div className="text-xs text-muted-foreground">Gruppo {d.bloodType}</div></TableCell><TableCell className="hidden lg:table-cell"><div>{d.birthDate||"—"}</div><div className="text-xs text-muted-foreground">Cod. {d.registryCode||"—"}</div></TableCell><TableCell className="hidden md:table-cell"><div>{d.phone??"—"}</div><div className="text-xs text-muted-foreground">{d.email??"—"}</div></TableCell><TableCell className="hidden sm:table-cell">{d.lastDonation}</TableCell><TableCell className="text-right font-medium">{d.donationCount}</TableCell><TableCell className="hidden text-right xl:table-cell"><Badge variant={d.active?"success":"warning"}>{d.active?"Attivo":"Non attivo"}</Badge></TableCell><TableCell><Button variant="ghost" size="icon" onClick={()=>edit(d)}><Pencil className="h-4 w-4"/></Button></TableCell></TableRow>)}</TableBody></Table></>; }
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { donors as initialDonors, type Donor } from "@/lib/donors";
+
+const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
+type DonorForm = Omit<Donor, "id" | "donationCount" | "lastDonation">;
+const emptyForm: DonorForm = {
+  name: "",
+  email: "",
+  phone: "",
+  birthDate: "",
+  registryCode: "",
+  bloodType: "0+",
+  active: true,
+};
+const italianMonths: Record<string, string> = {
+  gen: "01",
+  feb: "02",
+  mar: "03",
+  apr: "04",
+  mag: "05",
+  giu: "06",
+  lug: "07",
+  ago: "08",
+  set: "09",
+  ott: "10",
+  nov: "11",
+  dic: "12",
+};
+const toDateInputValue = (value: string) => {
+  if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [day, month, year] = value.split(" ");
+  return `${year}-${italianMonths[month]}-${day.padStart(2, "0")}`;
+};
+const formatBirthDate = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Intl.DateTimeFormat("it-IT", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+        .format(new Date(`${value}T00:00:00`))
+        .replace(".", "")
+    : value;
+
+function BirthDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const date = value
+    ? new Date(`${toDateInputValue(value)}T00:00:00`)
+    : undefined;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="h-4 w-4" />
+          {date
+            ? formatBirthDate(toDateInputValue(value))
+            : "Seleziona una data"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          locale={it}
+          captionLayout="dropdown"
+          selected={date}
+          onSelect={(selected) => {
+            if (!selected) return;
+            onChange(format(selected, "yyyy-MM-dd"));
+            setOpen(false);
+          }}
+          disabled={{ after: new Date() }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function DonorsTable() {
+  const [items, setItems] = useState(initialDonors);
+  const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [editing, setEditing] = useState<Donor | null>(null);
+  const [open, setOpen] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [form, setForm] = useState<DonorForm>(emptyForm);
+  const rows = useMemo(
+    () =>
+      items.filter(
+        (donor) =>
+          (activeFilter === "all" ||
+            donor.active === (activeFilter === "active")) &&
+          `${donor.name} ${donor.email ?? ""} ${donor.phone ?? ""} ${donor.registryCode}`
+            .toLowerCase()
+            .includes(query.toLowerCase()),
+      ),
+    [items, query, activeFilter],
+  );
+  const set = <K extends keyof DonorForm>(key: K, value: DonorForm[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const close = () => {
+    setOpen(false);
+    setEditing(null);
+    setForm(emptyForm);
+    setNameError(false);
+  };
+  const edit = (donor?: Donor) => {
+    setEditing(donor ?? null);
+    setForm(
+      donor
+        ? {
+            name: donor.name,
+            email: donor.email ?? "",
+            phone: donor.phone ?? "",
+            birthDate: donor.birthDate,
+            registryCode: donor.registryCode,
+            bloodType: donor.bloodType,
+            active: donor.active,
+          }
+        : emptyForm,
+    );
+    setNameError(false);
+    setOpen(true);
+  };
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Inserisci il nome del donatore.");
+      setNameError(true);
+      window.setTimeout(() => setNameError(false), 2000);
+      return;
+    }
+    setItems((current) =>
+      editing
+        ? current.map((donor) =>
+            donor.id === editing.id ? { ...donor, ...form } : donor,
+          )
+        : [
+            ...current,
+            {
+              ...form,
+              id: crypto.randomUUID(),
+              donationCount: 0,
+              lastDonation: "Nessuna donazione",
+            },
+          ],
+    );
+    toast.success(editing ? "Donatore aggiornato." : "Donatore inserito.");
+    close();
+  };
+
+  return (
+    <>
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Cerca per nome, codice o contatto"
+            className="pl-9"
+          />
+        </div>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
+          <SelectTrigger className="w-full lg:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti gli stati</SelectItem>
+            <SelectItem value="active">Attivi</SelectItem>
+            <SelectItem value="inactive">Non attivi</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button onClick={() => edit()}>
+          <Plus className="h-4 w-4" />
+          Nuovo donatore
+        </Button>
+      </div>
+      <Dialog open={open} onOpenChange={(value) => !value && close()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Modifica donatore" : "Nuovo donatore"}
+            </DialogTitle>
+            <DialogDescription>
+              Compila i dati disponibili: è obbligatorio solo il nome.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="name">Nome e cognome</Label>
+              <Input
+                id="name"
+                placeholder="es. Giulia Rossi"
+                value={form.name}
+                onChange={(event) => {
+                  set("name", event.target.value);
+                  setNameError(false);
+                }}
+                aria-invalid={nameError}
+                className={cn(
+                  nameError && "border-destructive bg-destructive/10 ring-2 ring-destructive/50",
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="birth">Data di nascita</Label>
+              <BirthDatePicker
+                value={form.birthDate}
+                onChange={(value) => set("birthDate", value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="code">Codice anagrafico</Label>
+              <Input
+                id="code"
+                inputMode="numeric"
+                placeholder="es. 6621972"
+                value={form.registryCode}
+                onChange={(event) => set("registryCode", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="es. giulia@email.it"
+                value={form.email}
+                onChange={(event) => set("email", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefono</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="es. +39 333 123 4567"
+                value={form.phone}
+                onChange={(event) => set("phone", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Gruppo sanguigno</Label>
+              <Select
+                value={form.bloodType}
+                onValueChange={(value) =>
+                  set("bloodType", value as DonorForm["bloodType"])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona gruppo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bloodTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Stato</Label>
+              <Select
+                value={form.active ? "active" : "inactive"}
+                onValueChange={(value) => set("active", value === "active")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Attivo</SelectItem>
+                  <SelectItem value="inactive">Non attivo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
+              <Button type="button" variant="outline" onClick={close}>
+                Annulla
+              </Button>
+              <Button type="submit">
+                {editing ? "Salva modifiche" : "Inserisci donatore"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Donatore</TableHead>
+            <TableHead className="hidden lg:table-cell">
+              Dati anagrafici
+            </TableHead>
+            <TableHead className="hidden md:table-cell">Contatti</TableHead>
+            <TableHead className="hidden sm:table-cell">
+              Ultima donazione
+            </TableHead>
+            <TableHead className="text-right">Donazioni</TableHead>
+            <TableHead className="hidden text-right xl:table-cell">
+              Stato
+            </TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((donor) => (
+            <TableRow key={donor.id}>
+              <TableCell>
+                <div className="font-medium">{donor.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  Gruppo {donor.bloodType}
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div>{formatBirthDate(donor.birthDate) || "—"}</div>
+                <div className="text-xs text-muted-foreground">
+                  Cod. {donor.registryCode || "—"}
+                </div>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div>{donor.phone ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {donor.email ?? "—"}
+                </div>
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                {donor.lastDonation}
+              </TableCell>
+              <TableCell className="text-right font-medium">
+                {donor.donationCount}
+              </TableCell>
+              <TableCell className="hidden text-right xl:table-cell">
+                <Badge variant={donor.active ? "success" : "warning"}>
+                  {donor.active ? "Attivo" : "Non attivo"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => edit(donor)}
+                  aria-label={`Modifica ${donor.name}`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
+  );
+}
