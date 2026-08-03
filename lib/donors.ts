@@ -7,10 +7,44 @@ export type Donor = {
   birthDate: string;
   registryCode: string;
   bloodType: "0+" | "0-" | "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-";
-  donationCount: number;
-  lastDonation: string;
+  donationCount: number | null;
+  lastDonation: string | null;
   active: boolean;
 };
+
+export type DatabaseDonor = {
+  id: number;
+  created_at: string | null;
+  name: string | null;
+  code: string | null;
+  birth_date: string | null;
+  gender: string | null;
+  email: string | null;
+  telephone: string | null;
+  blood_group: string | null;
+  is_active: boolean | null;
+};
+
+export const donorColumns =
+  "id, created_at, name, code, birth_date, gender, email, telephone, blood_group, is_active";
+
+export function donorFromDatabase(donor: DatabaseDonor): Donor {
+  const gender = donor.gender?.toLowerCase();
+
+  return {
+    id: String(donor.id),
+    name: donor.name ?? "Senza nome",
+    email: donor.email ?? undefined,
+    phone: donor.telephone ?? undefined,
+    gender: ["male", "m", "uomo"].includes(gender ?? "") ? "male" : "female",
+    birthDate: donor.birth_date?.slice(0, 10) ?? "",
+    registryCode: donor.code ?? "",
+    bloodType: (donor.blood_group ?? "0+") as Donor["bloodType"],
+    active: donor.is_active ?? false,
+    donationCount: null,
+    lastDonation: null,
+  };
+}
 
 const femaleDonorNames = new Set([
   "Giulia Rossi",

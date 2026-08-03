@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarIcon, Eye, Pencil, Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,8 +38,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { donors as initialDonors, type Donor } from "@/lib/donors";
+import {
+  donorColumns,
+  donorFromDatabase,
+  type DatabaseDonor,
+  type Donor,
+} from "@/lib/donors";
 import { donations } from "@/lib/donations";
+import { createClient } from "@/lib/supabase/client";
 
 const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 type DonorForm = Omit<Donor, "id" | "donationCount" | "lastDonation">;
@@ -128,7 +135,8 @@ function BirthDatePicker({
   );
 }
 
-export function DonorsTable() {
+export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
+  const router = useRouter();
   const [items, setItems] = useState(initialDonors);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -137,6 +145,7 @@ export function DonorsTable() {
   const [open, setOpen] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [form, setForm] = useState<DonorForm>(emptyForm);
+  const [saving, setSaving] = useState(false);
   const rows = useMemo(
     () =>
       items.filter(
@@ -176,7 +185,7 @@ export function DonorsTable() {
     setNameError(false);
     setOpen(true);
   };
-  const save = (event: React.FormEvent) => {
+  const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) {
       toast.error("Inserisci il nome del donatore.");
@@ -184,23 +193,50 @@ export function DonorsTable() {
       window.setTimeout(() => setNameError(false), 2000);
       return;
     }
+    setSaving(true);
+
+    const code = form.registryCode.trim();
+    const email = (form.email ?? "").trim();
+    const telephone = (form.phone ?? "").trim();
+    const values = {
+      name: form.name.trim(),
+      birth_date: form.birthDate ? `${form.birthDate}T00:00:00.000Z` : null,
+      gender: form.gender,
+      blood_group: form.bloodType,
+      is_active: form.active,
+      ...(code ? { code } : {}),
+      ...(email ? { email } : {}),
+      ...(telephone ? { telephone } : {}),
+    };
+    const supabase = createClient();
+    const query = editing
+      ? supabase
+          .from("donors")
+          .update(values)
+          .eq("id", editing.id)
+          .select(donorColumns)
+          .single()
+      : supabase.from("donors").insert(values).select(donorColumns).single();
+    const { data, error } = await query;
+
+    setSaving(false);
+
+    if (error) {
+      toast.error("Impossibile salvare il donatore. Riprova.");
+      return;
+    }
+
+    const savedDonor = donorFromDatabase(data as DatabaseDonor);
     setItems((current) =>
       editing
         ? current.map((donor) =>
-            donor.id === editing.id ? { ...donor, ...form } : donor,
+            donor.id === editing.id ? savedDonor : donor,
           )
-        : [
-            ...current,
-            {
-              ...form,
-              id: crypto.randomUUID(),
-              donationCount: 0,
-              lastDonation: "Nessuna donazione",
-            },
-          ],
+        : [savedDonor, ...current],
     );
     toast.success(editing ? "Donatore aggiornato." : "Donatore inserito.");
     close();
+    router.refresh();
   };
 
   return (
@@ -231,7 +267,10 @@ export function DonorsTable() {
         </Button>
       </div>
       <Dialog open={open} onOpenChange={(value) => !value && close()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {editing ? "Modifica donatore" : "Nuovo donatore"}
@@ -348,7 +387,7 @@ export function DonorsTable() {
               <Button type="button" variant="outline" onClick={close}>
                 Annulla
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={saving}>
                 {editing ? "Salva modifiche" : "Inserisci donatore"}
               </Button>
             </div>
@@ -419,7 +458,7 @@ export function DonorsTable() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Donazioni</p>
-                <p className="font-medium">{donor.donationCount}</p>
+                <p className="font-medium">{donor.donationCount ?? "—"}</p>
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Telefono</p>
@@ -429,12 +468,12 @@ export function DonorsTable() {
                 <p className="text-xs text-muted-foreground">
                   Ultima donazione
                 </p>
-                <p>{donor.lastDonation}</p>
+                <p>{donor.lastDonation ?? "—"}</p>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="w-full"
                 onClick={() => setDetailsDonor(donor)}
@@ -497,10 +536,10 @@ export function DonorsTable() {
                   </div>
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  {donor.lastDonation}
+                  {donor.lastDonation ?? "—"}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  {donor.donationCount}
+                  {donor.donationCount ?? "—"}
                 </TableCell>
                 <TableCell className="hidden text-right xl:table-cell">
                   <Badge variant={donor.active ? "success" : "warning"}>
