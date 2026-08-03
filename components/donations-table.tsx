@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarIcon, Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  donations as initialDonations,
+  donationColumns,
+  donationFromDatabase,
   donorForDonation,
+  type DatabaseDonation,
   type Donation,
 } from "@/lib/donations";
-import { donors } from "@/lib/donors";
+import { type Donor } from "@/lib/donors";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 type DonationForm = Pick<
@@ -53,10 +57,10 @@ const emptyForm: DonationForm = {
   type: "Sangue intero",
   classification: "donation",
 };
-const types: Exclude<Donation["type"], undefined>[] = [
+const types = [
   "Sangue intero",
   "Plasma",
-];
+] as const;
 const classifications = {
   donation: "Donazione",
   "first-donation": "Prima donazione",
@@ -140,13 +144,27 @@ function toInputDate(value: string) {
     : "";
 }
 
-export function DonationsTable() {
+export function DonationsTable({
+  donations: initialDonations,
+  donors,
+}: {
+  donations: Donation[];
+  donors: Donor[];
+}) {
+  const router = useRouter();
   const [items, setItems] = useState(initialDonations);
-  const [year, setYear] = useState<Donation["year"]>("2026");
+  const [year, setYear] = useState(
+    initialDonations[0]?.year || String(new Date().getFullYear()),
+  );
   const [editing, setEditing] = useState<Donation | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<DonationForm>(emptyForm);
   const [fieldErrors, setFieldErrors] = useState({ donor: false, date: false });
+  const [saving, setSaving] = useState(false);
+  const years = useMemo(
+    () => [...new Set(items.map((donation) => donation.year).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
+    [items],
+  );
   const rows = useMemo(
     () => items.filter((donation) => donation.year === year),
     [items, year],
@@ -174,7 +192,7 @@ export function DonationsTable() {
   };
   const set = <K extends keyof DonationForm>(key: K, value: DonationForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
-  const save = (event: React.FormEvent) => {
+  const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (
       !form.donorId ||
@@ -189,24 +207,48 @@ export function DonationsTable() {
       );
       return;
     }
-    const donationYear = form.date.slice(0, 4) as Donation["year"];
-    const stored = { ...form, date: formatDate(form.date), year: donationYear };
-    if (editing) {
-      setItems((current) =>
-        current.map((donation) =>
-          donation.id === editing.id ? { ...donation, ...stored } : donation,
-        ),
-      );
-      toast.success("Donazione aggiornata.");
-    } else {
-      setItems((current) => [
-        { ...stored, id: crypto.randomUUID() },
-        ...current,
-      ]);
-      toast.success("Donazione inserita.");
+    setSaving(true);
+    const values = {
+      donor_id: form.donorId,
+      date: `${form.date}T00:00:00.000Z`,
+      donation_type:
+        form.classification === "pre-donation"
+          ? ""
+          : form.type === "Plasma"
+            ? "plasma"
+            : "blood",
+      event_type: form.classification ?? "donation",
+    };
+    const supabase = createClient();
+    const query = editing
+      ? supabase
+          .from("donations")
+          .update(values)
+          .eq("id", editing.id)
+          .select(donationColumns)
+          .single()
+      : supabase.from("donations").insert(values).select(donationColumns).single();
+    const { data, error } = await query;
+
+    setSaving(false);
+
+    if (error) {
+      toast.error("Impossibile salvare la donazione. Riprova.");
+      return;
     }
-    setYear(donationYear);
+
+    const savedDonation = donationFromDatabase(data as DatabaseDonation);
+    setItems((current) =>
+      editing
+        ? current.map((donation) =>
+            donation.id === editing.id ? savedDonation : donation,
+          )
+        : [savedDonation, ...current],
+    );
+    setYear(savedDonation.year);
+    toast.success(editing ? "Donazione aggiornata." : "Donazione inserita.");
     closeForm();
+    router.refresh();
   };
   return (
     <>
@@ -218,16 +260,12 @@ export function DonationsTable() {
           <div className="w-32">
             <Select
               value={year}
-              onValueChange={(value) => setYear(value as Donation["year"])}
+              onValueChange={setYear}
             >
               <SelectTrigger aria-label="Filtra per anno">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2026">2026</SelectItem>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2024">2024</SelectItem>
-              </SelectContent>
+              <SelectContent>{years.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
@@ -266,7 +304,7 @@ export function DonationsTable() {
                 </SelectTrigger>
                 <SelectContent>
                   {donors
-                    .filter((donor) => donor.active)
+                    .filter((donor) => donor.active || donor.id === form.donorId)
                     .map((donor) => (
                       <SelectItem key={donor.id} value={donor.id}>
                         {donor.name} · {donor.bloodType}
@@ -342,7 +380,7 @@ export function DonationsTable() {
               <Button type="button" variant="outline" onClick={closeForm}>
                 Annulla
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={saving}>
                 {editing ? "Salva modifiche" : "Inserisci donazione"}
               </Button>
             </div>
@@ -364,7 +402,7 @@ export function DonationsTable() {
                       {donor?.name ?? "Donatore non trovato"}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {donation.date} · Gruppo {donor?.bloodType ?? "—"}
+                      {formatDate(donation.date)} · Gruppo {donor?.bloodType ?? "—"}
                     </p>
                   </div>
                   <Badge variant="outline" className="shrink-0">
@@ -416,7 +454,7 @@ export function DonationsTable() {
                 const donor = donorForDonation(donation, donors);
                 return (
                   <TableRow key={donation.id}>
-                    <TableCell>{donation.date}</TableCell>
+                    <TableCell>{formatDate(donation.date)}</TableCell>
                     <TableCell>
                       <div className="font-medium">
                         {donor?.name ?? "Donatore non trovato"}

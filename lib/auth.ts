@@ -7,10 +7,6 @@ export type SignInResult =
   | { success: true }
   | { success: false; message: string };
 
-/**
- * Punto di integrazione per Supabase.
- * Sostituire il corpo con supabase.auth.signInWithPassword(credentials).
- */
 export async function signInWithPassword(
   credentials: SignInCredentials,
 ): Promise<SignInResult> {
@@ -18,9 +14,19 @@ export async function signInWithPassword(
     return { success: false, message: "Inserisci email e password." };
   }
 
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithPassword(credentials);
+
+  if (error) {
+    return { success: false, message: "Email o password errati." };
+  }
+
   return { success: true };
 }
 
 export async function signOut(): Promise<void> {
-  // Punto di integrazione per Supabase: supabase.auth.signOut().
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  await supabase.auth.signOut();
 }

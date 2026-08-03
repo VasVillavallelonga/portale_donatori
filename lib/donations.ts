@@ -4,10 +4,45 @@ export type Donation = {
   id: string;
   donorId: string;
   date: string;
-  year: "2024" | "2025" | "2026";
-  type?: "Sangue intero" | "Plasma";
+  year: string;
+  type?: string;
   classification?: "donation" | "first-donation" | "pre-donation";
 };
+
+export type DatabaseDonation = {
+  id: number;
+  created_at: string;
+  donor_id: number;
+  date: string | null;
+  donation_type: string;
+  event_type: string;
+};
+
+export const donationColumns =
+  "id, created_at, donor_id, date, donation_type, event_type";
+
+export function donationFromDatabase(donation: DatabaseDonation): Donation {
+  const date = donation.date?.slice(0, 10) ?? "";
+  const classification = ["donation", "first-donation", "pre-donation"].includes(
+    donation.event_type,
+  )
+    ? (donation.event_type as Donation["classification"])
+    : "donation";
+
+  return {
+    id: String(donation.id),
+    donorId: String(donation.donor_id),
+    date,
+    year: date.slice(0, 4),
+    type:
+      donation.donation_type === "blood"
+        ? "Sangue intero"
+        : donation.donation_type === "plasma"
+          ? "Plasma"
+          : donation.donation_type || undefined,
+    classification,
+  };
+}
 
 export const donations: Donation[] = [
   {
