@@ -1,12 +1,109 @@
 "use client";
+
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { HandHeart, Loader2 } from "lucide-react";
+import { Eye, EyeOff, HandHeart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signInWithPassword } from "@/lib/auth";
-export default function LoginPage() { const router = useRouter(); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(false); async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); if (!/^\S+@\S+\.\S+$/.test(email)) { setError("Inserisci un indirizzo email valido."); return; } if (!password) { setError("Inserisci la password."); return; } setLoading(true); const result = await signInWithPassword({ email, password }); setLoading(false); if (!result.success) { setError(result.message); return; } toast.success("Accesso effettuato."); router.push("/dashboard"); router.refresh(); } return <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12"><Card className="w-full max-w-md"><CardHeader className="items-center text-center"><Link href="/" className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"><HandHeart className="h-5 w-5" /><span className="sr-only">Torna alla home</span></Link><CardTitle className="text-2xl">Bentornato</CardTitle><CardDescription>Accedi per gestire le donazioni.</CardDescription></CardHeader><CardContent><form onSubmit={submit} className="space-y-5" noValidate><div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@organizzazione.it" aria-invalid={Boolean(error)} /></div><div className="space-y-2"><div className="flex items-center justify-between"><Label htmlFor="password">Password</Label><button type="button" className="text-sm text-primary underline-offset-4 hover:underline" onClick={() => toast.info("Il recupero password sarà disponibile a breve.")}>Password dimenticata?</button></div><Input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} /></div>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}<Button className="w-full" type="submit" disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin" />}Accedi</Button></form></CardContent></Card></main>; }
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Inserisci un indirizzo email valido.");
+      return;
+    }
+    if (!password) {
+      setError("Inserisci la password.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await signInWithPassword({ email, password });
+    setLoading(false);
+
+    if (!result.success) {
+      setError(result.message);
+      return;
+    }
+
+    toast.success("Accesso effettuato.");
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
+      <Card className="w-full max-w-md">
+        <CardHeader className="items-center text-center">
+          <Link href="/" className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <HandHeart className="h-5 w-5" />
+            <span className="sr-only">Torna alla home</span>
+          </Link>
+          <CardTitle className="text-2xl">Bentornato</CardTitle>
+          <CardDescription>Accedi per gestire le donazioni.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submit} className="space-y-5" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="nome@organizzazione.it"
+                aria-invalid={Boolean(error)}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button type="button" className="text-sm text-primary underline-offset-4 hover:underline" onClick={() => toast.info("Il recupero password sarà disponibile a breve.")}>Password dimenticata?</button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-invalid={Boolean(error)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <Button className="w-full" type="submit" disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Accedi
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}

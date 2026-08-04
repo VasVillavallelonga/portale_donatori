@@ -8,6 +8,8 @@ export type Donor = {
   registryCode: string;
   bloodType: "0+" | "0-" | "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-";
   donationCount: number | null;
+  bloodDonationCount: number | null;
+  plasmaDonationCount: number | null;
   lastDonation: string | null;
   active: boolean;
 };
@@ -42,6 +44,8 @@ export function donorFromDatabase(donor: DatabaseDonor): Donor {
     bloodType: (donor.blood_group ?? "0+") as Donor["bloodType"],
     active: donor.is_active ?? false,
     donationCount: null,
+    bloodDonationCount: null,
+    plasmaDonationCount: null,
     lastDonation: null,
   };
 }
@@ -64,7 +68,10 @@ const femaleDonorNames = new Set([
   "Alice Neri",
 ]);
 
-const donorRecords: Omit<Donor, "gender">[] = [
+const donorRecords: Omit<
+  Donor,
+  "gender" | "bloodDonationCount" | "plasmaDonationCount"
+>[] = [
   {
     id: "1",
     name: "Giulia Rossi",
@@ -428,4 +435,6 @@ const donorRecords: Omit<Donor, "gender">[] = [
 export const donors: Donor[] = donorRecords.map((donor) => ({
   ...donor,
   gender: femaleDonorNames.has(donor.name) ? "female" : "male",
+  bloodDonationCount: null,
+  plasmaDonationCount: null,
 }));
