@@ -28,5 +28,7 @@ export async function signInWithPassword(
 export async function signOut(): Promise<void> {
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+
+  if (error) throw error;
 }

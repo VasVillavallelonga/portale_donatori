@@ -66,6 +66,23 @@ const classifications = {
   "first-donation": "Prima donazione",
   "pre-donation": "Predonazione (idoneità)",
 } as const;
+const classificationStyles = {
+  donation: {
+    label: "Donazione",
+    variant: "success",
+    color: "border-emerald-200 bg-emerald-50/50",
+  },
+  "first-donation": {
+    label: "Prima donazione",
+    variant: "info",
+    color: "border-sky-200 bg-sky-50/50",
+  },
+  "pre-donation": {
+    label: "Idoneità",
+    variant: "warning",
+    color: "border-amber-200 bg-amber-50/50",
+  },
+} as const;
 
 function DonationDatePicker({
   value,
@@ -166,8 +183,19 @@ export function DonationsTable({
     [items],
   );
   const rows = useMemo(
-    () => items.filter((donation) => donation.year === year),
+    () =>
+      items
+        .filter((donation) => donation.year === year)
+        .sort((first, second) =>
+          toInputDate(second.date).localeCompare(toInputDate(first.date)),
+        ),
     [items, year],
+  );
+  const donationCount = useMemo(
+    () =>
+      rows.filter((donation) => donation.classification !== "pre-donation")
+        .length,
+    [rows],
   );
   const closeForm = () => {
     setIsFormOpen(false);
@@ -255,7 +283,7 @@ export function DonationsTable({
       <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row">
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted-foreground">
-            {rows.length} donazioni registrate
+            {rows.length} registrazioni · {donationCount} donazioni
           </p>
           <div className="w-32">
             <Select
@@ -391,22 +419,36 @@ export function DonationsTable({
         {rows.length ? (
           rows.map((donation) => {
             const donor = donorForDonation(donation, donors);
+            const classification =
+              classificationStyles[donation.classification ?? "donation"];
             return (
               <div
                 key={donation.id}
-                className="rounded-xl border bg-card p-4 shadow-sm"
+                className={cn(
+                  "rounded-xl border p-4 shadow-sm",
+                  classification.color,
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">
+                    <p
+                      className={cn(
+                        "font-semibold",
+                        donor?.gender === "female"
+                          ? "text-pink-600"
+                          : donor
+                            ? "text-sky-600"
+                            : "",
+                      )}
+                    >
                       {donor?.name ?? "Donatore non trovato"}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {formatDate(donation.date)} · Gruppo {donor?.bloodType ?? "—"}
                     </p>
                   </div>
-                  <Badge variant="outline" className="shrink-0">
-                    {classifications[donation.classification ?? "donation"]}
+                  <Badge variant={classification.variant} className="shrink-0">
+                    {classification.label}
                   </Badge>
                 </div>
                 <div className="mt-4 rounded-lg bg-muted/50 p-3">
@@ -452,11 +494,22 @@ export function DonationsTable({
             {rows.length ? (
               rows.map((donation) => {
                 const donor = donorForDonation(donation, donors);
+                const classification =
+                  classificationStyles[donation.classification ?? "donation"];
                 return (
-                  <TableRow key={donation.id}>
+                  <TableRow key={donation.id} className={classification.color}>
                     <TableCell>{formatDate(donation.date)}</TableCell>
                     <TableCell>
-                      <div className="font-medium">
+                      <div
+                        className={cn(
+                          "font-medium",
+                          donor?.gender === "female"
+                            ? "text-pink-600"
+                            : donor
+                              ? "text-sky-600"
+                              : "",
+                        )}
+                      >
                         {donor?.name ?? "Donatore non trovato"}
                       </div>
                       <div className="text-xs text-muted-foreground sm:hidden">
@@ -468,8 +521,8 @@ export function DonationsTable({
                     </TableCell>
                     <TableCell className="text-right">
                       <div>{donation.type ?? "—"}</div>
-                      <Badge variant="outline" className="mt-1">
-                        {classifications[donation.classification ?? "donation"]}
+                      <Badge variant={classification.variant} className="mt-1">
+                        {classification.label}
                       </Badge>
                     </TableCell>
                     <TableCell>

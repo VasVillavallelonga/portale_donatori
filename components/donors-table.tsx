@@ -44,11 +44,18 @@ import {
   type DatabaseDonor,
   type Donor,
 } from "@/lib/donors";
-import { donations } from "@/lib/donations";
+import { type Donation } from "@/lib/donations";
 import { createClient } from "@/lib/supabase/client";
 
 const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
-type DonorForm = Omit<Donor, "id" | "donationCount" | "lastDonation">;
+type DonorForm = Omit<
+  Donor,
+  | "id"
+  | "donationCount"
+  | "bloodDonationCount"
+  | "plasmaDonationCount"
+  | "lastDonation"
+>;
 const emptyForm: DonorForm = {
   name: "",
   email: "",
@@ -73,6 +80,11 @@ const italianMonths: Record<string, string> = {
   nov: "11",
   dic: "12",
 };
+const donationClassifications = {
+  donation: { label: "Donazione", variant: "success", color: "border-emerald-200 bg-emerald-50/50" },
+  "first-donation": { label: "Prima donazione", variant: "info", color: "border-sky-200 bg-sky-50/50" },
+  "pre-donation": { label: "Idoneità", variant: "warning", color: "border-amber-200 bg-amber-50/50" },
+} as const;
 const toDateInputValue = (value: string) => {
   if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const [day, month, year] = value.split(" ");
@@ -135,7 +147,13 @@ function BirthDatePicker({
   );
 }
 
-export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
+export function DonorsTable({
+  donors: initialDonors,
+  donations,
+}: {
+  donors: Donor[];
+  donations: Donation[];
+}) {
   const router = useRouter();
   const [items, setItems] = useState(initialDonors);
   const [query, setQuery] = useState("");
@@ -157,6 +175,11 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
             .includes(query.toLowerCase()),
       ),
     [items, query, activeFilter],
+  );
+  const detailsDonations = useMemo(
+    () =>
+      donations.filter((donation) => donation.donorId === detailsDonor?.id),
+    [detailsDonor?.id, donations],
   );
   const set = <K extends keyof DonorForm>(key: K, value: DonorForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -242,6 +265,9 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
   return (
     <>
       <div className="mb-5 flex flex-col gap-3 lg:flex-row">
+        <p className="flex shrink-0 items-center text-sm text-muted-foreground">
+          {rows.length} donatori registrati
+        </p>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
@@ -398,30 +424,47 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
         open={Boolean(detailsDonor)}
         onOpenChange={(open) => !open && setDetailsDonor(null)}
       >
-        <DialogContent>
+        <DialogContent className="flex max-h-[90vh] flex-col sm:max-h-[32rem]">
           <DialogHeader>
             <DialogTitle>Donazioni di {detailsDonor?.name}</DialogTitle>
           </DialogHeader>
-          <div className="mt-3 space-y-3">
-            {donations.filter(
-              (donation) => donation.donorId === detailsDonor?.id,
-            ).length ? (
-              donations
-                .filter((donation) => donation.donorId === detailsDonor?.id)
-                .map((donation) => (
+          <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            {detailsDonations.length ? (
+              detailsDonations.map((donation) => {
+                const classification =
+                  donationClassifications[donation.classification ?? "donation"];
+
+                return (
                   <div
                     key={donation.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-3",
+                      classification.color,
+                    )}
                   >
                     <div>
-                      <p className="font-medium">{donation.type}</p>
+                      <p className="font-medium">
+                        {donation.type ?? "Idoneità"}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {donation.date}
+                        {donation.date
+                          ? format(
+                              new Date(`${donation.date}T12:00:00`),
+                              "dd MMM yyyy",
+                              { locale: it },
+                            )
+                          : "—"}
                       </p>
                     </div>
-                    <Badge variant="outline">{donation.year}</Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={classification.variant}>
+                        {classification.label}
+                      </Badge>
+                      <Badge variant="outline">{donation.year}</Badge>
+                    </div>
                   </div>
-                ))
+                );
+              })
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Nessuna donazione registrata.
@@ -431,14 +474,24 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
         </DialogContent>
       </Dialog>
       <div className="grid gap-3 sm:hidden">
-        {rows.map((donor) => (
+        {rows.length ? (
+          rows.map((donor) => (
           <div
             key={donor.id}
             className="rounded-xl border bg-card p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-semibold">{donor.name}</p>
+                <p
+                  className={cn(
+                    "font-semibold",
+                    donor.gender === "female"
+                      ? "text-pink-600"
+                      : "text-sky-600",
+                  )}
+                >
+                  {donor.name}
+                </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {donor.gender === "female" ? "Donna" : "Uomo"} · Gruppo{" "}
                   {donor.bloodType} · Cod. {donor.registryCode || "—"}
@@ -458,7 +511,13 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Donazioni</p>
-                <p className="font-medium">{donor.donationCount ?? "—"}</p>
+                <p className="font-medium">
+                  Totale {donor.donationCount ?? "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Sangue {donor.bloodDonationCount ?? "—"} · Plasma{" "}
+                  {donor.plasmaDonationCount ?? "—"}
+                </p>
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Telefono</p>
@@ -492,7 +551,12 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
               </Button>
             </div>
           </div>
-        ))}
+          ))
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nessun donatore trovato.
+          </p>
+        )}
       </div>
       <div className="hidden sm:block">
         <Table>
@@ -514,10 +578,20 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((donor) => (
+            {rows.length ? (
+              rows.map((donor) => (
               <TableRow key={donor.id}>
                 <TableCell>
-                  <div className="font-medium">{donor.name}</div>
+                  <div
+                    className={cn(
+                      "font-medium",
+                      donor.gender === "female"
+                        ? "text-pink-600"
+                        : "text-sky-600",
+                    )}
+                  >
+                    {donor.name}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {donor.gender === "female" ? "Donna" : "Uomo"} · Gruppo{" "}
                     {donor.bloodType}
@@ -539,7 +613,11 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
                   {donor.lastDonation ?? "—"}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  {donor.donationCount ?? "—"}
+                  <div>Totale {donor.donationCount ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Sangue {donor.bloodDonationCount ?? "—"} · Plasma{" "}
+                    {donor.plasmaDonationCount ?? "—"}
+                  </div>
                 </TableCell>
                 <TableCell className="hidden text-right xl:table-cell">
                   <Badge variant={donor.active ? "success" : "warning"}>
@@ -565,7 +643,17 @@ export function DonorsTable({ donors: initialDonors }: { donors: Donor[] }) {
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  Nessun donatore trovato.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
