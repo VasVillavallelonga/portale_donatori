@@ -17,9 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Donation } from "@/lib/donations";
 import type { Donor } from "@/lib/donors";
 
-type DashboardDonor = Pick<Donor, "id" | "name" | "bloodType" | "active"> & {
-  createdAt: string | null;
-};
+type DashboardDonor = Pick<Donor, "id" | "name" | "bloodType" | "active">;
 
 const months = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
@@ -41,14 +39,11 @@ export function DashboardOverview({
   donations: Donation[];
 }) {
   const years = useMemo(() => {
-    const availableYears = new Set([
-      ...donations.map((donation) => donation.year),
-      ...donors.map((donor) => donor.createdAt?.slice(0, 4) ?? ""),
-    ]);
+    const availableYears = new Set(donations.map((donation) => donation.year));
     const values = [...availableYears].filter(Boolean).sort((a, b) => b.localeCompare(a));
 
     return values.length ? values : [String(new Date().getFullYear())];
-  }, [donations, donors]);
+  }, [donations]);
   const [year, setYear] = useState(years[0]);
   const donationsForYear = useMemo(
     () =>
@@ -64,8 +59,13 @@ export function DashboardOverview({
     return donors.filter((donor) => donor.active && donorIds.has(donor.id)).length;
   }, [donationsForYear, donors]);
   const newDonors = useMemo(
-    () => donors.filter((donor) => donor.createdAt?.slice(0, 4) === year).length,
-    [donors, year],
+    () =>
+      new Set(
+        donationsForYear
+          .filter((donation) => donation.classification === "first-donation")
+          .map((donation) => donation.donorId),
+      ).size,
+    [donationsForYear],
   );
   const monthlyDonations = useMemo(
     () =>
