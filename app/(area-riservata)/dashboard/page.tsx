@@ -24,7 +24,6 @@ export default async function DashboardPage() {
       name: donor.name,
       bloodType: donor.bloodType,
       active: donor.active,
-      createdAt: databaseDonor.created_at,
     };
   });
   const donations = (donationsData as DatabaseDonation[]).map(donationFromDatabase);
