@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { CalendarIcon, Eye, Pencil, Plus, Search } from "lucide-react";
+import { CalendarIcon, Eye, Pencil, Plus, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ClearFilterButton, MobileFilters } from "@/components/filter-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -278,40 +279,69 @@ export function DonorsTable({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cerca per nome, codice o contatto"
-            className="pl-9"
+            className={query ? "pl-9 pr-10" : "pl-9"}
           />
+          {query && (
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label="Rimuovi ricerca"
+              onClick={() => setQuery("")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <Select value={bloodFilter} onValueChange={setBloodFilter}>
-          <SelectTrigger className="w-full lg:w-40" aria-label="Filtra per gruppo sanguigno">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti i gruppi</SelectItem>
-            {bloodTypes.map((type) => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={genderFilter} onValueChange={setGenderFilter}>
-          <SelectTrigger className="w-full lg:w-36" aria-label="Filtra per sesso">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti i sessi</SelectItem>
-            <SelectItem value="female">Donne</SelectItem>
-            <SelectItem value="male">Uomini</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={activeFilter} onValueChange={setActiveFilter}>
-          <SelectTrigger className="w-full lg:w-40" aria-label="Filtra per stato">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="active">Attivi</SelectItem>
-            <SelectItem value="inactive">Non attivi</SelectItem>
-          </SelectContent>
-        </Select>
+        <MobileFilters
+          activeCount={[bloodFilter, genderFilter, activeFilter].filter((value) => value !== "all").length}
+        >
+        <div className="flex items-center gap-1 lg:w-44">
+          <Select value={bloodFilter} onValueChange={setBloodFilter}>
+            <SelectTrigger className="w-full" aria-label="Filtra per gruppo sanguigno">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i gruppi</SelectItem>
+              {bloodTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {bloodFilter !== "all" && (
+            <ClearFilterButton label="gruppo sanguigno" onClear={() => setBloodFilter("all")} />
+          )}
+        </div>
+        <div className="flex items-center gap-1 lg:w-40">
+          <Select value={genderFilter} onValueChange={setGenderFilter}>
+            <SelectTrigger className="w-full" aria-label="Filtra per sesso">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i sessi</SelectItem>
+              <SelectItem value="female">Donne</SelectItem>
+              <SelectItem value="male">Uomini</SelectItem>
+            </SelectContent>
+          </Select>
+          {genderFilter !== "all" && (
+            <ClearFilterButton label="sesso" onClear={() => setGenderFilter("all")} />
+          )}
+        </div>
+        <div className="flex items-center gap-1 lg:w-44">
+          <Select value={activeFilter} onValueChange={setActiveFilter}>
+            <SelectTrigger className="w-full" aria-label="Filtra per stato">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti gli stati</SelectItem>
+              <SelectItem value="active">Attivi</SelectItem>
+              <SelectItem value="inactive">Non attivi</SelectItem>
+            </SelectContent>
+          </Select>
+          {activeFilter !== "all" && (
+            <ClearFilterButton label="stato" onClear={() => setActiveFilter("all")} />
+          )}
+        </div>
+        </MobileFilters>
         <Button onClick={() => edit()}>
           <Plus className="h-4 w-4" />
           Nuovo donatore

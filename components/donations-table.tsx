@@ -6,6 +6,7 @@ import { it } from "date-fns/locale";
 import { CalendarIcon, Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ClearFilterButton, MobileFilters } from "@/components/filter-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -318,44 +319,64 @@ export function DonationsTable({
           Nuova donazione
         </Button>
       </div>
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 flex flex-col gap-3 sm:grid sm:grid-cols-3">
+        <MobileFilters
+          activeCount={[donorQuery, bloodFilter !== "all", typeFilter !== "all"].filter(Boolean).length}
+          className="sm:col-span-3 sm:grid sm:grid-cols-3"
+        >
         <div className="space-y-2">
           <Label htmlFor="donation-donor-filter">Donatore</Label>
-          <Input
-            id="donation-donor-filter"
-            value={donorQuery}
-            onChange={(event) => setDonorQuery(event.target.value)}
-            placeholder="Filtra per nome"
-          />
+          <div className="flex items-center gap-1">
+            <Input
+              id="donation-donor-filter"
+              value={donorQuery}
+              onChange={(event) => setDonorQuery(event.target.value)}
+              placeholder="Filtra per nome"
+            />
+            {donorQuery && (
+              <ClearFilterButton label="donatore" onClear={() => setDonorQuery("")} />
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Gruppo sanguigno</Label>
-          <Select value={bloodFilter} onValueChange={setBloodFilter}>
-            <SelectTrigger aria-label="Filtra per gruppo sanguigno">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti i gruppi</SelectItem>
-              {bloodTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={bloodFilter} onValueChange={setBloodFilter}>
+              <SelectTrigger aria-label="Filtra per gruppo sanguigno">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i gruppi</SelectItem>
+                {bloodTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {bloodFilter !== "all" && (
+              <ClearFilterButton label="gruppo sanguigno" onClear={() => setBloodFilter("all")} />
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Tipologia</Label>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger aria-label="Filtra per tipologia">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutte le tipologie</SelectItem>
-              <SelectItem value="Sangue intero">Sangue intero</SelectItem>
-              <SelectItem value="Plasma">Plasma</SelectItem>
-              <SelectItem value="pre-donation">Idoneità</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger aria-label="Filtra per tipologia">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutte le tipologie</SelectItem>
+                <SelectItem value="Sangue intero">Sangue intero</SelectItem>
+                <SelectItem value="Plasma">Plasma</SelectItem>
+                <SelectItem value="pre-donation">Idoneità</SelectItem>
+              </SelectContent>
+            </Select>
+            {typeFilter !== "all" && (
+              <ClearFilterButton label="tipologia" onClear={() => setTypeFilter("all")} />
+            )}
+          </div>
         </div>
+        </MobileFilters>
       </div>
       <Dialog open={isFormOpen} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent>
