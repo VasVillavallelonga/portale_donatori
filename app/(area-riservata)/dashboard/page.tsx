@@ -22,6 +22,7 @@ export default async function DashboardPage() {
     return {
       id: donor.id,
       name: donor.name,
+      gender: donor.gender,
       bloodType: donor.bloodType,
       active: donor.active,
     };

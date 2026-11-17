@@ -17,9 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Donation } from "@/lib/donations";
 import type { Donor } from "@/lib/donors";
 
-type DashboardDonor = Pick<Donor, "id" | "name" | "bloodType" | "active">;
+type DashboardDonor = Pick<Donor, "id" | "name" | "bloodType" | "gender" | "active">;
 
 const months = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
+
+function percent(count: number, total: number) {
+  if (!total) return 0;
+  return Math.round((count / total) * 100);
+}
 
 function formatDate(value: string) {
   const date = new Date(`${value}T12:00:00`);
@@ -115,6 +121,18 @@ export function DashboardOverview({
     { label: "Donatori attivi", value: activeDonors, icon: Users },
     { label: "Nuovi donatori", value: newDonors, icon: HeartPulse },
   ];
+  const donorsForYear = useMemo(() => {
+    const donorIds = new Set(donationsForYear.map((donation) => donation.donorId));
+    return donors.filter((donor) => donorIds.has(donor.id));
+  }, [donationsForYear, donors]);
+  const women = donorsForYear.filter((donor) => donor.gender === "female").length;
+  const men = donorsForYear.filter((donor) => donor.gender === "male").length;
+  const wholeBlood = donationsForYear.filter((donation) => donation.type === "Sangue intero").length;
+  const plasma = donationsForYear.filter((donation) => donation.type === "Plasma").length;
+  const bloodGroups = bloodTypes.map((type) => {
+    const count = donorsForYear.filter((donor) => donor.bloodType === type).length;
+    return { type, count, share: percent(count, donorsForYear.length) };
+  });
 
   return (
     <>
@@ -149,6 +167,61 @@ export function DashboardOverview({
           </Card>
         ))}
       </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Donatori per sesso</CardTitle>
+            <CardDescription>Chi ha effettuato almeno una donazione nel {year}.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-sky-600">Uomini</p>
+              <p className="mt-1 text-2xl font-bold">{men}</p>
+              <p className="text-sm text-muted-foreground">{percent(men, donorsForYear.length)}%</p>
+            </div>
+            <div>
+              <p className="text-sm text-pink-600">Donne</p>
+              <p className="mt-1 text-2xl font-bold">{women}</p>
+              <p className="text-sm text-muted-foreground">{percent(women, donorsForYear.length)}%</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Tipo di raccolta</CardTitle>
+            <CardDescription>Sangue intero e plasma nel {year}, idoneità escluse.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Sangue intero</p>
+              <p className="mt-1 text-2xl font-bold">{wholeBlood}</p>
+              <p className="text-sm text-muted-foreground">{percent(wholeBlood, donationsForYear.length)}%</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Plasma</p>
+              <p className="mt-1 text-2xl font-bold">{plasma}</p>
+              <p className="text-sm text-muted-foreground">{percent(plasma, donationsForYear.length)}%</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Gruppi sanguigni</CardTitle>
+          <CardDescription>Quota dei donatori del {year} per gruppo.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          {bloodGroups.map(({ type, count, share }) => (
+            <div key={type} className="grid grid-cols-[3rem_1fr_auto] items-center gap-3">
+              <p className="text-sm font-medium">{type}</p>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+              </div>
+              <p className="whitespace-nowrap text-sm text-muted-foreground">{count} · {share}%</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Confronto annuale</CardTitle>
