@@ -322,7 +322,7 @@ export function DonationsTable({
       <div className="mb-4 flex flex-col gap-3 sm:grid sm:grid-cols-3">
         <MobileFilters
           activeCount={[donorQuery, bloodFilter !== "all", typeFilter !== "all"].filter(Boolean).length}
-          className="sm:col-span-3 sm:grid sm:grid-cols-3"
+          className="sm:col-span-3 sm:grid sm:grid-cols-3 sm:gap-8"
         >
         <div className="space-y-2">
           <Label htmlFor="donation-donor-filter">Donatore</Label>
