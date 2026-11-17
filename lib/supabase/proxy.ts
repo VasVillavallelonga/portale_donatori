@@ -1,9 +1,38 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { isPrivateRoute, isStaleRefresh } from "@/lib/auth";
+
+function restoreRequestCookies(
+  request: NextRequest,
+  cookies: { name: string; value: string }[],
+) {
+  for (const cookie of request.cookies.getAll()) request.cookies.delete(cookie.name);
+  for (const cookie of cookies) request.cookies.set(cookie.name, cookie.value);
+}
+
+function redirectWithSession(
+  request: NextRequest,
+  session: NextResponse,
+  pathname: string,
+  nextPath?: string,
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  if (nextPath) url.searchParams.set("next", nextPath);
+
+  const redirect = NextResponse.redirect(url);
+  const refreshedCookies = session.headers.get("x-middleware-set-cookie");
+  if (refreshedCookies) redirect.headers.set("x-middleware-set-cookie", refreshedCookies);
+  return redirect;
+}
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const snapshot = request.cookies.getAll().map(({ name, value }) => ({ name, value }));
+  const pathname = request.nextUrl.pathname;
+  request.headers.set("x-portal-path", pathname);
 
+  let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -23,25 +52,36 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data: claims } = await supabase.auth.getClaims();
-  const pathname = request.nextUrl.pathname;
-  const isPrivateRoute = ["/dashboard", "/donatori", "/donazioni"].some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  const finish = (signedIn: boolean) => {
+    if (!signedIn && isPrivateRoute(pathname)) {
+      return redirectWithSession(request, response, "/login", pathname);
+    }
 
-  if (!claims && isPrivateRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    if (signedIn && pathname === "/login") {
+      const nextPath = request.nextUrl.searchParams.get("next");
+      return redirectWithSession(
+        request,
+        response,
+        nextPath && isPrivateRoute(nextPath) ? nextPath : "/dashboard",
+      );
+    }
+
+    return response;
+  };
+
+  try {
+    const { data, error } = await supabase.auth.getClaims();
+
+    if (error && isStaleRefresh(error)) {
+      restoreRequestCookies(request, snapshot);
+      return NextResponse.next({ request });
+    }
+
+    return finish(Boolean(data?.claims));
+  } catch (error) {
+    console.error(error);
+    restoreRequestCookies(request, snapshot);
+    response = NextResponse.next({ request });
+    return finish(false);
   }
-
-  if (claims && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  return response;
 }

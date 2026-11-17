@@ -6,32 +6,36 @@ import {
   donationFromDatabase,
   type DatabaseDonation,
 } from "@/lib/donations";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, readQuery } from "@/lib/supabase/server";
 
 function formatDonationDate(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
   return new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   })
-    .format(new Date(`${value}T12:00:00`))
+    .format(date)
     .replace(".", "");
 }
 
 export default async function DonorsPage() {
   const supabase = await createClient();
-  const [{ data: donorsData, error: donorsError }, { data: donationsData, error: donationsError }] =
-    await Promise.all([
-      supabase.from("donors").select(donorColumns).order("name", { ascending: true }),
-      supabase.from("donations").select(donationColumns).order("date", { ascending: false }),
-    ]);
+  const [donorsData, donationsData] = await Promise.all([
+    readQuery(
+      () => supabase.from("donors").select(donorColumns).order("name", { ascending: true }),
+      "Impossibile caricare i donatori.",
+    ),
+    readQuery(
+      () =>
+        supabase.from("donations").select(donationColumns).order("date", { ascending: false }),
+      "Impossibile caricare i donatori.",
+    ),
+  ]);
 
-  if (donorsError || donationsError) {
-    console.log(donorsError ?? donationsError);
-    throw new Error("Impossibile caricare i donatori.");
-  }
-
-  const databaseDonations = donationsData as DatabaseDonation[];
+  const databaseDonations = (donationsData ?? []) as DatabaseDonation[];
   const donationStats = new Map<
     number,
     {
@@ -62,7 +66,7 @@ export default async function DonorsPage() {
     donationStats.set(donation.donor_id, stats);
   }
 
-  const donors = (donorsData as DatabaseDonor[]).map((databaseDonor) => {
+  const donors = ((donorsData ?? []) as DatabaseDonor[]).map((databaseDonor) => {
     const donor = donorFromDatabase(databaseDonor);
     const stats = donationStats.get(databaseDonor.id);
 

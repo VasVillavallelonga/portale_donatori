@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -61,6 +62,7 @@ const types = [
   "Sangue intero",
   "Plasma",
 ] as const;
+const bloodTypes = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const classifications = {
   donation: "Donazione",
   "first-donation": "Prima donazione",
@@ -178,6 +180,9 @@ export function DonationsTable({
   const [form, setForm] = useState<DonationForm>(emptyForm);
   const [fieldErrors, setFieldErrors] = useState({ donor: false, date: false });
   const [saving, setSaving] = useState(false);
+  const [donorQuery, setDonorQuery] = useState("");
+  const [bloodFilter, setBloodFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const years = useMemo(
     () => [...new Set(items.map((donation) => donation.year).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
     [items],
@@ -185,11 +190,22 @@ export function DonationsTable({
   const rows = useMemo(
     () =>
       items
-        .filter((donation) => donation.year === year)
+        .filter((donation) => {
+          if (donation.year !== year) return false;
+          const donor = donorForDonation(donation, donors);
+          const donorName = donor?.name ?? "";
+          if (donorQuery && !donorName.toLowerCase().includes(donorQuery.trim().toLowerCase())) {
+            return false;
+          }
+          if (bloodFilter !== "all" && donor?.bloodType !== bloodFilter) return false;
+          if (typeFilter === "pre-donation") return donation.classification === "pre-donation";
+          if (typeFilter !== "all" && donation.type !== typeFilter) return false;
+          return true;
+        })
         .sort((first, second) =>
           toInputDate(second.date).localeCompare(toInputDate(first.date)),
         ),
-    [items, year],
+    [bloodFilter, donorQuery, donors, items, typeFilter, year],
   );
   const donationCount = useMemo(
     () =>
@@ -301,6 +317,45 @@ export function DonationsTable({
           <Plus className="h-4 w-4" />
           Nuova donazione
         </Button>
+      </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="donation-donor-filter">Donatore</Label>
+          <Input
+            id="donation-donor-filter"
+            value={donorQuery}
+            onChange={(event) => setDonorQuery(event.target.value)}
+            placeholder="Filtra per nome"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Gruppo sanguigno</Label>
+          <Select value={bloodFilter} onValueChange={setBloodFilter}>
+            <SelectTrigger aria-label="Filtra per gruppo sanguigno">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i gruppi</SelectItem>
+              {bloodTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Tipologia</Label>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger aria-label="Filtra per tipologia">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutte le tipologie</SelectItem>
+              <SelectItem value="Sangue intero">Sangue intero</SelectItem>
+              <SelectItem value="Plasma">Plasma</SelectItem>
+              <SelectItem value="pre-donation">Idoneità</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <Dialog open={isFormOpen} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent>
@@ -473,7 +528,7 @@ export function DonationsTable({
           })
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Nessuna donazione registrata per l’anno selezionato.
+            Nessuna donazione corrisponde ai filtri.
           </p>
         )}
       </div>
@@ -544,7 +599,7 @@ export function DonationsTable({
                   colSpan={5}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  Nessuna donazione registrata per l’anno selezionato.
+                  Nessuna donazione corrisponde ai filtri.
                 </TableCell>
               </TableRow>
             )}
