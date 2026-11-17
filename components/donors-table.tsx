@@ -158,6 +158,8 @@ export function DonorsTable({
   const [items, setItems] = useState(initialDonors);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [bloodFilter, setBloodFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
   const [editing, setEditing] = useState<Donor | null>(null);
   const [detailsDonor, setDetailsDonor] = useState<Donor | null>(null);
   const [open, setOpen] = useState(false);
@@ -170,11 +172,13 @@ export function DonorsTable({
         (donor) =>
           (activeFilter === "all" ||
             donor.active === (activeFilter === "active")) &&
+          (bloodFilter === "all" || donor.bloodType === bloodFilter) &&
+          (genderFilter === "all" || donor.gender === genderFilter) &&
           `${donor.name} ${donor.email ?? ""} ${donor.phone ?? ""} ${donor.registryCode}`
             .toLowerCase()
             .includes(query.toLowerCase()),
       ),
-    [items, query, activeFilter],
+    [activeFilter, bloodFilter, genderFilter, items, query],
   );
   const detailsDonations = useMemo(
     () =>
@@ -277,8 +281,29 @@ export function DonorsTable({
             className="pl-9"
           />
         </div>
+        <Select value={bloodFilter} onValueChange={setBloodFilter}>
+          <SelectTrigger className="w-full lg:w-40" aria-label="Filtra per gruppo sanguigno">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i gruppi</SelectItem>
+            {bloodTypes.map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={genderFilter} onValueChange={setGenderFilter}>
+          <SelectTrigger className="w-full lg:w-36" aria-label="Filtra per sesso">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i sessi</SelectItem>
+            <SelectItem value="female">Donne</SelectItem>
+            <SelectItem value="male">Uomini</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={activeFilter} onValueChange={setActiveFilter}>
-          <SelectTrigger className="w-full lg:w-44">
+          <SelectTrigger className="w-full lg:w-40" aria-label="Filtra per stato">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

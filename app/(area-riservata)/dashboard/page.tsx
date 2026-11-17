@@ -1,22 +1,22 @@
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { donationColumns, donationFromDatabase, type DatabaseDonation } from "@/lib/donations";
 import { donorColumns, donorFromDatabase, type DatabaseDonor } from "@/lib/donors";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, readQuery } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: donorsData, error: donorsError }, { data: donationsData, error: donationsError }] =
-    await Promise.all([
-      supabase.from("donors").select(donorColumns),
-      supabase.from("donations").select(donationColumns),
-    ]);
+  const [donorsData, donationsData] = await Promise.all([
+    readQuery(
+      () => supabase.from("donors").select(donorColumns),
+      "Impossibile caricare la dashboard.",
+    ),
+    readQuery(
+      () => supabase.from("donations").select(donationColumns),
+      "Impossibile caricare la dashboard.",
+    ),
+  ]);
 
-  if (donorsError || donationsError) {
-    console.log(donorsError ?? donationsError);
-    throw new Error("Impossibile caricare la dashboard.");
-  }
-
-  const donors = (donorsData as DatabaseDonor[]).map((databaseDonor) => {
+  const donors = ((donorsData ?? []) as DatabaseDonor[]).map((databaseDonor) => {
     const donor = donorFromDatabase(databaseDonor);
 
     return {
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       active: donor.active,
     };
   });
-  const donations = (donationsData as DatabaseDonation[]).map(donationFromDatabase);
+  const donations = ((donationsData ?? []) as DatabaseDonation[]).map(donationFromDatabase);
 
   return <DashboardOverview donors={donors} donations={donations} />;
 }

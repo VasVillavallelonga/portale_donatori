@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Droplets, HeartPulse, Users } from "lucide-react";
 import {
   Bar,
@@ -22,12 +22,15 @@ type DashboardDonor = Pick<Donor, "id" | "name" | "bloodType" | "active">;
 const months = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
 function formatDate(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
   return new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   })
-    .format(new Date(`${value}T12:00:00`))
+    .format(date)
     .replace(".", "");
 }
 
@@ -45,6 +48,14 @@ export function DashboardOverview({
     return values.length ? values : [String(new Date().getFullYear())];
   }, [donations]);
   const [year, setYear] = useState(years[0]);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const donationsForYear = useMemo(
     () =>
       donations.filter(
@@ -164,15 +175,25 @@ export function DashboardOverview({
             <CardDescription>Donazioni registrate mese per mese nel {year}.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="var(--border)" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} interval={0} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: "var(--muted)" }} />
-                  <Bar dataKey="donations" name="Donazioni" fill="var(--primary)" radius={[6, 6, 0, 0]} minPointSize={4} />
-                </BarChart>
+            <div className={narrow ? "h-[28rem] w-full" : "h-64 w-full"}>
+              <ResponsiveContainer key={narrow ? "mesi-stretti" : "mesi-larghi"} width="100%" height="100%">
+                {narrow ? (
+                  <BarChart data={monthlyChartData} layout="vertical" margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid horizontal={false} stroke="var(--border)" />
+                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="month" width={40} interval={0} tickLine={false} axisLine={false} />
+                    <Tooltip cursor={{ fill: "var(--muted)" }} />
+                    <Bar dataKey="donations" name="Donazioni" fill="var(--primary)" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                ) : (
+                  <BarChart data={monthlyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} interval={0} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                    <Tooltip cursor={{ fill: "var(--muted)" }} />
+                    <Bar dataKey="donations" name="Donazioni" fill="var(--primary)" radius={[6, 6, 0, 0]} minPointSize={4} />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           </CardContent>

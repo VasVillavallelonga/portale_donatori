@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInWithPassword } from "@/lib/auth";
+import { safeNextPath, signInWithPassword } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,7 +42,8 @@ export default function LoginPage() {
     }
 
     toast.success("Accesso effettuato.");
-    router.push("/dashboard");
+    const nextPath = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+    router.push(nextPath);
     router.refresh();
   }
 
